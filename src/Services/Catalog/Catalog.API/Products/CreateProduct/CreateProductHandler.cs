@@ -1,6 +1,6 @@
-﻿using BuildingBlocks.CQRS;
-using Catalog.API.Models;
-using MediatR;
+﻿
+
+using Microsoft.Extensions.Logging;
 
 namespace Catalog.API.Products.CreateProduct;
 
@@ -8,7 +8,20 @@ public record CreateProductCommand(string Name, List<string> Category, string De
     : ICommand<CreateProductResult>;
 public record CreateProductResult(Guid Id);
 
-internal class CreateProductCommandHandler 
+public class CreateProductCommandValidator : AbstractValidator<CreateProductCommand>
+{
+    public CreateProductCommandValidator()
+    {
+        RuleFor(x => x.Name).NotEmpty().WithMessage("Product name is required.");
+        RuleFor(x => x.Category).NotEmpty().WithMessage("At least one category is required.");
+        RuleFor(x => x.Description).NotEmpty().WithMessage("Product description is required.");
+        RuleFor(x => x.ImageFile).NotEmpty().WithMessage("Product image file is required.");
+        RuleFor(x => x.Price).GreaterThan(0).WithMessage("Product price must be greater than zero.");
+    }
+}
+
+internal class CreateProductCommandHandler
+    (IDocumentSession session)
     : ICommandHandler<CreateProductCommand, CreateProductResult>
 {
     public async Task<CreateProductResult> Handle(CreateProductCommand command, CancellationToken cancellationToken)
@@ -23,12 +36,11 @@ internal class CreateProductCommandHandler
             Price = command.Price
         };
 
-        // TODO
         // save to database.
-
+        session.Store(product);
+        await session.SaveChangesAsync(cancellationToken);
 
         // return result.
-
-        return new CreateProductResult(Guid.NewGuid());
+        return new CreateProductResult(product.Id);
     }
 }
