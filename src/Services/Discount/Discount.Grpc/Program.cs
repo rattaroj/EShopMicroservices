@@ -1,5 +1,6 @@
 using Discount.Grpc.Data;
 using Discount.Grpc.Services;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -8,6 +9,16 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddGrpc();
 builder.Services.AddDbContext<DiscountContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("Database")));
+
+
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.ListenAnyIP(8081, listenOptions =>
+    {
+        listenOptions.Protocols = HttpProtocols.Http2;
+    });
+});
+
 
 var app = builder.Build();
 
