@@ -35,7 +35,7 @@ services:
       container_name: orderdb
       environment:
         - ACCEPT_EULA=Y
-        - SA_PASSWORD=wareHouse1234
+        - MSSQL_SA_PASSWORD=passW0rd@123
       restart: always
       ports:
         - "1433:1433"
@@ -77,12 +77,16 @@ services:
         - ConnectionStrings__Database=Server=basketdb;Port=5432;Database=BasketDb;User Id=postgres;Password=postgres;Include Error Detail=true
         - ConnectionStrings__Redis=distributedcache:6379
         - GrpcSettings__DiscountUrl=http://discount.grpc:8081
+        - MessageBroker__Host=amqp://ecommerce-mq:5672
+        - MessageBroker__UserName=guest
+        - MessageBroker__Password=guest
         - ASPNETCORE_Kestrel__Certificates__Default__Password=Pass@1234
         - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/dockerdemo.pfx
       depends_on:
         - basketdb
         - distributedcache
         - discount.grpc
+        - messagebroker
       ports:
         - "6001:8080"
         - "6061:8081"
@@ -106,3 +110,42 @@ services:
         - ${APPDATA}/Microsoft/UserSecrets:/home/app/.microsoft/usersecrets:ro
         - ${APPDATA}/ASP.NET/Https:/home/app/.aspnet/https:ro
         - ~/.aspnet/https:/https:ro
+
+    ordering.api:
+      environment:
+        - ASPNETCORE_ENVIRONMENT=Development
+        - ASPNETCORE_HTTP_PORTS=8080
+        - ASPNETCORE_HTTPS_PORTS=8081
+        - ConnectionStrings__Database=Server=orderdb;Database=OrderDb;User Id=sa;Password=passW0rd@123;Encrypt=False;TrustServerCertificate=True
+        - MessageBroker__Host=amqp://ecommerce-mq:5672 
+        - MessageBroker__UserName=guest
+        - MessageBroker__Password=guest
+        - FeatureManagement__OrderFullfilment=false
+        - ASPNETCORE_Kestrel__Certificates__Default__Password=Pass@1234
+        - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/dockerdemo.pfx
+      depends_on:
+        - orderdb
+        - messagebroker 
+      ports:
+        - "6003:8080"
+        - "6063:8081"
+      volumes:
+        - ${APPDATA}/Microsoft/UserSecrets:/home/app/.microsoft/usersecrets:ro
+        - ${APPDATA}/ASP.NET/Https:/home/app/.aspnet/https:ro
+        - ~/.aspnet/https:/https:ro
+
+    yarpapigateway:
+      environment:
+        - ASPNETCORE_ENVIRONMENT=Development
+        - ASPNETCORE_HTTP_PORTS=8080
+        - ASPNETCORE_HTTPS_PORTS=8081
+      depends_on:
+        - catalog.api
+        - basket.api
+        - ordering.api 
+      ports:
+        - "6004:8080"
+        - "6064:8081"
+      volumes:
+        - ${APPDATA}/Microsoft/UserSecrets:/home/app/.microsoft/usersecrets:ro
+        - ${APPDATA}/ASP.NET/Https:/home/app/.aspnet/https:ro
